@@ -1,0 +1,18 @@
+{
+  "name": "stablepay-tauri-root",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "apps/client/*",
+    "apps/merchant/*",
+    "packages/*",
+    "packages/ui/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+@source "../node_modules/@stablepay/client-ui";
+@source "../node_modules/@stablepay/ui-base";
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}

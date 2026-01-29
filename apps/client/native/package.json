@@ -1,0 +1,40 @@
+{
+  "name": "stablepay-client-native",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@reown/appkit": "^1.8.16",
+    "@reown/appkit-adapter-wagmi": "^1.8.16",
+    "@stablepay/client-ui": "workspace:*",
+    "@stablepay/common": "workspace:*",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-query": "^5.90.16",
+    "@tanstack/react-router": "^1.146.2",
+    "@tanstack/react-router-devtools": "^1.146.2",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-http": "~2",
+    "@tauri-apps/plugin-opener": "^2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.18",
+    "viem": "^2.44.0",
+    "wagmi": "^3.2.0"
+  },
+  "devDependencies": {
+    "@tanstack/router-plugin": "^1.146.3",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "vite-tsconfig-paths": "^6.0.3"
+  }
+}

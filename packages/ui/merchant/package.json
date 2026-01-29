@@ -1,0 +1,22 @@
+{
+  "name": "@stablepay/merchant-ui",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@stablepay/common": "workspace:*",
+    "@stablepay/ui-base": "workspace:*",
+    "effect": "^3.19.14"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  },
+  "peerDependencies": {
+    "lucide-react": "*",
+    "react": "*",
+    "react-dom": "*",
+    "typescript": "^5"
+  }
+}

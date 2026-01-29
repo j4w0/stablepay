@@ -1,0 +1,26 @@
+{
+  "name": "@stablepay/common",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@ensofinance/sdk": "^2.0.12",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@reown/appkit": "^1.8.16",
+    "@reown/appkit-adapter-wagmi": "^1.8.16",
+    "@zerodev/ecdsa-validator": "^5.4.9",
+    "@zerodev/passkey-validator": "^5.6.0",
+    "@zerodev/permissions": "^5.6.3",
+    "@zerodev/sdk": "^5.5.7",
+    "effect": "^3.19.14",
+    "permissionless": "^0.3.2",
+    "uuid": "^13.0.0",
+    "viem": "^2.44.0",
+    "wagmi": "^3.2.0",
+    "zustand": "^5.0.9"
+  }
+}
