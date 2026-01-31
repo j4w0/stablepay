@@ -1,10 +1,15 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Button,
   Card,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
+  Input,
   Label,
 } from '@stablepay/ui-base';
 import React from 'react';
@@ -18,9 +23,8 @@ export const PaymentConfirmationView: React.FC<PaymentConfirmationProps> = ({
   networks,
   isLoading,
   onConfirm,
+  onAmountChange,
   unifiedBalance,
-  routeInfo,
-  isCalculatingRoute,
 }) => {
   return (
     <div className='flex items-center justify-center h-full'>
@@ -44,13 +48,29 @@ export const PaymentConfirmationView: React.FC<PaymentConfirmationProps> = ({
               </div>
             </div>
 
-            {amount && (
+            {onAmountChange ? (
               <div className='flex justify-between items-center py-2 border-b border-white/10'>
                 <Label>Amount</Label>
-                <div className='font-mono'>
-                  {amount} {currency}
+                <div className='flex items-center gap-2'>
+                  <Input
+                    type='number'
+                    value={amount}
+                    onChange={(e) => onAmountChange(e.target.value)}
+                    className='w-32 font-mono text-right h-8'
+                    min='0'
+                  />
+                  <div className='font-mono'>{currency}</div>
                 </div>
               </div>
+            ) : (
+              amount && (
+                <div className='flex justify-between items-center py-2 border-b border-white/10'>
+                  <Label>Amount</Label>
+                  <div className='font-mono'>
+                    {amount} {currency}
+                  </div>
+                </div>
+              )
             )}
 
             {networks && (
@@ -66,65 +86,55 @@ export const PaymentConfirmationView: React.FC<PaymentConfirmationProps> = ({
           {unifiedBalance && (
             <div className='space-y-2'>
               <Label>Unified Balance</Label>
-              <div className='flex items-center justify-between p-3 rounded-lg border border-white/10'>
-                <div className='flex flex-col'>
-                  <span className='font-bold'>Unified Stable Balance</span>
-                  <span className='text-xs text-muted-foreground'>
-                    Combined across supported stablecoins
-                  </span>
-                </div>
-                <div className='flex flex-col items-end'>
-                  <span className='font-mono'>
-                    {unifiedBalance.formattedAmount} {unifiedBalance.currency}
-                  </span>
-                  {!unifiedBalance.hasEnoughBalance && (
-                    <span className='text-xs text-red-500'>
-                      Insufficient Balance
+              <div className='rounded-lg border border-white/10'>
+                <div className='flex items-center justify-between p-3'>
+                  <div className='flex flex-col'>
+                    <span className='font-bold'>Unified Stable Balance</span>
+                    <span className='text-xs text-muted-foreground'>
+                      Combined across supported stablecoins
                     </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isCalculatingRoute && (
-            <div className='text-sm text-center text-muted-foreground animate-pulse py-2'>
-              Finding best payment route...
-            </div>
-          )}
-
-          {routeInfo && (
-            <div className='space-y-2'>
-              <Label>Payment Route (Auto-Swap)</Label>
-              <div className='p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 space-y-3 text-sm'>
-                <div className='flex justify-between items-center'>
-                  <span className='text-muted-foreground'>You Pay</span>
-                  <div className='text-right'>
-                    <div className='font-bold font-mono'>
-                      {parseFloat(routeInfo.fromAmount).toFixed(4)}{' '}
-                      {routeInfo.fromTokenSymbol}
-                    </div>
-                    <div className='text-xs text-muted-foreground'>
-                      Chain ID: {routeInfo.fromChainId}
-                    </div>
+                  </div>
+                  <div className='flex flex-col items-end'>
+                    <span className='font-mono'>
+                      {unifiedBalance.formattedAmount} {unifiedBalance.currency}
+                    </span>
+                    {!unifiedBalance.hasEnoughBalance && (
+                      <span className='text-xs text-red-500'>
+                        Insufficient Balance
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div className='flex justify-center text-muted-foreground'>
-                  ↓
-                </div>
-
-                <div className='flex justify-between items-center'>
-                  <span className='text-muted-foreground'>Merchant Gets</span>
-                  <div className='text-right'>
-                    <div className='font-bold font-mono'>
-                      {routeInfo.toAmount} {routeInfo.toTokenSymbol}
-                    </div>
-                    <div className='text-xs text-muted-foreground'>
-                      Chain ID: {routeInfo.toChainId}
-                    </div>
-                  </div>
-                </div>
+                {unifiedBalance.breakdown.length > 0 && (
+                  <Accordion type='single' collapsible className='w-full px-3'>
+                    <AccordionItem value='details' className='border-none'>
+                      <AccordionTrigger className='py-2 text-xs text-muted-foreground'>
+                        View Breakdown
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className='space-y-2 pb-3'>
+                          {unifiedBalance.breakdown.map((item, idx) => (
+                            <div
+                              key={`${item.chainId}-${item.symbol}-${idx}`}
+                              className='flex justify-between items-center text-sm'
+                            >
+                              <div className='flex flex-col'>
+                                <span className='font-mono'>{item.symbol}</span>
+                                <span className='text-[10px] text-muted-foreground'>
+                                  {item.chainName}
+                                </span>
+                              </div>
+                              <span className='font-mono'>
+                                {item.formattedAmount} {item.currency}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
               </div>
             </div>
           )}
@@ -137,7 +147,11 @@ export const PaymentConfirmationView: React.FC<PaymentConfirmationProps> = ({
         </CardContent>
         {onConfirm && (
           <CardFooter>
-            <Button className='w-full' onClick={onConfirm} disabled={isLoading}>
+            <Button
+              className='w-full'
+              onClick={onConfirm}
+              disabled={isLoading || !amount || parseFloat(amount) <= 0}
+            >
               {isLoading ? 'Processing...' : 'Pay Now'}
             </Button>
           </CardFooter>

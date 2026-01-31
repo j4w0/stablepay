@@ -9,8 +9,12 @@
     "packages/*",
     "packages/ui/*"
   ],
+  "scripts": {
+    "dev:all": "bun run scripts/dev-all.ts"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "concurrently": "^9.2.1"
   },
   "peerDependencies": {
     "typescript": "^5"

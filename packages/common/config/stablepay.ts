@@ -3,7 +3,6 @@ import { arbitrum, polygon, sepolia } from 'viem/chains';
 
 export const stablepayConfig = {
   clientBaseUrl: 'http://localhost:5173',
-  ensoApiKey: '3a939c9a-8026-4ebd-b812-2313bb1bdee1',
 };
 
 export interface StableCoinInfo {

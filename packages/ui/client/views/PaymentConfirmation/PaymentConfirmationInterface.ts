@@ -1,17 +1,18 @@
+export interface BalanceBreakdownItem {
+  symbol: string;
+  amount: number;
+  formattedAmount: string;
+  currency: string;
+  chainName: string;
+  chainId: number;
+}
+
 export interface UnifiedBalanceInfo {
   amount: number;
   formattedAmount: string;
   currency: string;
   hasEnoughBalance: boolean;
-}
-
-export interface SwapRouteInfo {
-  fromTokenSymbol: string;
-  fromAmount: string;
-  fromChainId: number;
-  toTokenSymbol: string;
-  toAmount: string;
-  toChainId: number;
+  breakdown: BalanceBreakdownItem[];
 }
 
 export interface PaymentConfirmationProps {
@@ -22,7 +23,6 @@ export interface PaymentConfirmationProps {
   networks?: string;
   isLoading?: boolean;
   onConfirm?: () => void;
+  onAmountChange?: (amount: string) => void;
   unifiedBalance?: UnifiedBalanceInfo;
-  routeInfo?: SwapRouteInfo | null;
-  isCalculatingRoute?: boolean;
 }

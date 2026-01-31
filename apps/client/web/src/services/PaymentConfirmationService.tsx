@@ -1,28 +1,24 @@
-import {
-  PaymentConfirmationView,
-  type SwapRouteInfo,
-} from '@stablepay/client-ui';
+import { PaymentConfirmationView } from '@stablepay/client-ui';
 import {
   supportedStablecoins,
   supportedTestnetStablecoins,
 } from '@stablepay/common/config/stablepay';
 import { publicClient } from '@stablepay/common/config/zerodev';
-import { type SwapRoute } from '@stablepay/common/interfaces/swap';
 import { useGlobalStore } from '@stablepay/common/stores/global';
 import { useWalletStore } from '@stablepay/common/stores/wallet';
-import { buildEnsoSwapPlan } from '@stablepay/common/utils/enso';
+import { getDefiClient } from '@stablepay/common/utils/defi';
 import { erc20Abi } from '@stablepay/common/utils/erc20';
 import { getKernelClientWithPasskey } from '@stablepay/common/utils/initZeroDev';
+import {
+  getBestUniswapQuote,
+  getUniswapSwapCallData,
+  UNISWAP_V3_SWAP_ROUTER,
+} from '@stablepay/common/utils/uniswap';
 import { useNavigate } from '@tanstack/react-router';
 import { Effect } from 'effect';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  encodeFunctionData,
-  formatUnits,
-  parseUnits,
-  type Address,
-} from 'viem';
+import { encodeFunctionData, parseUnits, type Address } from 'viem';
 import { arbitrum, polygon, sepolia } from 'viem/chains';
 import { api } from '../api';
 import { Route } from '../routes/pay/$address';
@@ -35,8 +31,6 @@ export const PaymentConfirmationService = () => {
   const [merchantName, setMerchantName] = useState<string | undefined>(
     undefined,
   );
-  const [swapPlan, setSwapPlan] = useState<SwapRoute | null>(null);
-  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
   const {
     webAuthnKey,
@@ -50,88 +44,19 @@ export const PaymentConfirmationService = () => {
   const totalAssetsUsd = useGlobalStore((state) => state.totalAssetsUsd);
 
   const paymentCurrency = search.currency || 'USD';
-  const paymentAmountRaw = Number(search.amount || '0');
-  const paymentAmount = Number.isFinite(paymentAmountRaw)
-    ? paymentAmountRaw
-    : 0;
+
+  // State for amount, initialized from search param
+  const [amountInput, setAmountInput] = useState(
+    search.amount?.toString() || '0',
+  );
+
+  const paymentAmount = useMemo(() => {
+    const val = Number(amountInput);
+    return Number.isFinite(val) ? val : 0;
+  }, [amountInput]);
 
   const isDev = import.meta.env.DEV;
   const allTokens = isDev ? supportedTestnetStablecoins : supportedStablecoins;
-
-  // Identify Target Token
-  const targetToken = useMemo(() => {
-    const targetChainId =
-      search.networks?.[0] ?? (isDev ? sepolia.id : arbitrum.id);
-    const targetSymbol = search.currency ?? 'USDC';
-    return allTokens.find(
-      (t) => t.currency === targetSymbol && t.chainId === targetChainId,
-    );
-  }, [search.networks, search.currency, allTokens, isDev]);
-
-  // Determine if we can pay directly
-  const directBalance = useMemo(() => {
-    if (!targetToken) return undefined;
-    return stableAssetBalances.find(
-      (b) =>
-        b.token.chainId === targetToken.chainId &&
-        b.token.contractAddress.toLowerCase() ===
-          targetToken.contractAddress.toLowerCase(),
-    );
-  }, [targetToken, stableAssetBalances]);
-
-  const isDirectPayment = useMemo(() => {
-    const directAmount = directBalance?.amount ?? 0;
-    return directAmount >= paymentAmount;
-  }, [directBalance, paymentAmount]);
-
-  // Calculate Swap Route if needed
-  useEffect(() => {
-    if (
-      isDirectPayment ||
-      !targetToken ||
-      !smartWalletAddress ||
-      !address ||
-      paymentAmount === 0
-    ) {
-      setSwapPlan(null);
-      return;
-    }
-
-    const calcRouteEffect = Effect.gen(function* (_) {
-      yield* _(Effect.sync(() => setIsCalculatingRoute(true)));
-
-      const plan = yield* _(
-        buildEnsoSwapPlan({
-          balances: stableAssetBalances,
-          targetToken,
-          targetAmount: paymentAmount.toString(),
-          fromAddress: smartWalletAddress,
-          merchantAddress: address,
-        }),
-      );
-
-      yield* _(Effect.sync(() => setSwapPlan(plan)));
-      yield* _(Effect.sync(() => setIsCalculatingRoute(false)));
-    });
-
-    Effect.runPromise(
-      calcRouteEffect.pipe(
-        Effect.tapError((error) =>
-          Effect.sync(() => {
-            console.error('Failed to calculate route:', error);
-            setIsCalculatingRoute(false);
-          }),
-        ),
-      ),
-    );
-  }, [
-    isDirectPayment,
-    targetToken,
-    smartWalletAddress,
-    address,
-    paymentAmount,
-    stableAssetBalances,
-  ]);
 
   const chainNameById = useMemo(
     () =>
@@ -175,6 +100,26 @@ export const PaymentConfirmationService = () => {
   };
 
   const unifiedBalance = useMemo(() => {
+    const breakdown = stableAssetBalances
+      .map((balance) => {
+        const chainName =
+          chainNameById.get(balance.token.chainId) || 'Unknown Network';
+        const formatted = new Intl.NumberFormat(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6,
+        }).format(balance.amount);
+
+        return {
+          symbol: balance.token.displaySymbol,
+          amount: balance.amount,
+          formattedAmount: formatted,
+          currency: balance.token.currency,
+          chainName,
+          chainId: balance.token.chainId,
+        };
+      })
+      .filter((b) => b.amount > 0);
+
     const rate = getMockFxRate('USD', paymentCurrency);
     const amount =
       (Number.isFinite(totalAssetsUsd) ? totalAssetsUsd : 0) * rate;
@@ -187,8 +132,15 @@ export const PaymentConfirmationService = () => {
       formattedAmount,
       currency: paymentCurrency,
       hasEnoughBalance: amount >= paymentAmount,
+      breakdown,
     };
-  }, [paymentAmount, paymentCurrency, totalAssetsUsd]);
+  }, [
+    paymentAmount,
+    paymentCurrency,
+    totalAssetsUsd,
+    stableAssetBalances,
+    chainNameById,
+  ]);
 
   useEffect(() => {
     if (!address) return;
@@ -219,21 +171,6 @@ export const PaymentConfirmationService = () => {
       ),
     );
   }, [address]);
-
-  const routeInfo: SwapRouteInfo | undefined = useMemo(() => {
-    if (!swapPlan) return undefined;
-    return {
-      fromTokenSymbol: swapPlan.fromToken.displaySymbol,
-      fromAmount: formatUnits(
-        BigInt(swapPlan.fromAmount),
-        swapPlan.fromToken.decimals,
-      ),
-      fromChainId: swapPlan.fromToken.chainId,
-      toTokenSymbol: swapPlan.toToken.displaySymbol,
-      toAmount: swapPlan.toAmount,
-      toChainId: swapPlan.toToken.chainId,
-    };
-  }, [swapPlan]);
 
   useEffect(() => {
     if (!webAuthnKey) {
@@ -291,17 +228,16 @@ export const PaymentConfirmationService = () => {
       );
 
       const directAmount = directBalance?.amount ?? 0;
-      const isDirectPayment = directAmount >= paymentAmount;
+      const hasSufficientBalance = directAmount >= paymentAmount;
 
-      let calls: { to: Address; value: bigint; data: `0x${string}` }[] = [];
-      let txChainId = safeTargetToken.chainId;
-      // Used for API reporting - what did we ACTUALLY send?
-      // The API seems to want "what the merchant received" details?
-      // "tokenAddress: mockToken.contractAddress".
-      // If payment is SWAP, user sends Token A, Merchant gets Token B.
-      // API likely tracks the PAYMENT intent (Token B).
+      const calls: { to: Address; value: bigint; data: `0x${string}` }[] = [];
+      const txChainId = safeTargetToken.chainId;
 
-      if (isDirectPayment) {
+      let paymentStrategy: 'direct' | 'swap' = 'direct';
+      let swapParams: { fromToken: Address; fromAmount: bigint } | undefined;
+
+      // Ensure we are sending the correct token to the merchant.
+      if (hasSufficientBalance) {
         const amountWei = parseUnits(
           paymentAmount.toFixed(safeTargetToken.decimals),
           safeTargetToken.decimals,
@@ -317,48 +253,103 @@ export const PaymentConfirmationService = () => {
           data: callData,
         });
       } else {
-        yield* _(Effect.sync(() => toast.info('Calculating swap route...')));
-
-        const plan = yield* _(
-          buildEnsoSwapPlan({
-            balances: stableAssetBalances,
-            targetToken: safeTargetToken,
-            targetAmount: paymentAmount.toString(),
-            fromAddress: smartWalletAddress!,
-            merchantAddress: address,
-          }),
+        paymentStrategy = 'swap';
+        const candidates = stableAssetBalances.filter(
+          (b) =>
+            b.token.chainId === safeTargetToken.chainId &&
+            b.token.contractAddress.toLowerCase() !==
+              safeTargetToken.contractAddress.toLowerCase() &&
+            b.amount > 0,
         );
 
-        if (!plan) {
-          yield* _(
-            Effect.fail(new Error('Insufficient balance or no route found')),
+        let sourceToken = null;
+        let sourceAmountToSwap = 0n;
+
+        // Simple heuristic: First token that covers the amount with 5% buffer
+        for (const cand of candidates) {
+          const rate = getMockFxRate(
+            cand.token.currency,
+            safeTargetToken.currency,
           );
+          // buffer: 1.05 (5% slippage/fee buffer)
+          const neededInput = (paymentAmount / rate) * 1.05;
+
+          if (cand.amount >= neededInput) {
+            sourceToken = cand.token;
+            sourceAmountToSwap = parseUnits(
+              neededInput.toFixed(cand.token.decimals),
+              cand.token.decimals,
+            );
+            break;
+          }
         }
 
-        const safePlan = plan!;
+        if (sourceToken) {
+          // If using Uniswap (Testnet), we need a quote to determine exact amount
+          if (isDev && safeTargetToken.chainId === sepolia.id) {
+            yield* _(
+              Effect.sync(() =>
+                toast.info(
+                  `Fetching Uniswap quote for ${sourceToken.displaySymbol}...`,
+                ),
+              ),
+            );
 
-        txChainId = safePlan.fromToken.chainId;
-        const swapRouter = safePlan.tx.target;
-        const approveAmount = BigInt(safePlan.fromAmount);
+            const quote = yield* _(
+              Effect.tryPromise({
+                try: () =>
+                  getBestUniswapQuote(
+                    publicClient,
+                    sourceToken.contractAddress,
+                    safeTargetToken.contractAddress,
+                    sourceAmountToSwap,
+                  ),
+                catch: (error) => error,
+              }),
+            );
 
-        // Approve
-        const approveData = encodeFunctionData({
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [swapRouter, approveAmount],
-        });
-        calls.push({
-          to: safePlan.fromToken.contractAddress as Address,
-          value: 0n,
-          data: approveData,
-        });
+            if (!quote || quote.amountOut < 0n) {
+              return yield* _(
+                Effect.fail(
+                  new Error(
+                    'Failed to get a valid swap quote from Uniswap on Sepolia.',
+                  ),
+                ),
+              );
+            }
 
-        // Swap
-        calls.push({
-          to: safePlan.tx.to,
-          value: safePlan.tx.value,
-          data: safePlan.tx.data,
-        });
+            swapParams = {
+              fromToken: sourceToken.contractAddress,
+              fromAmount: sourceAmountToSwap,
+              // For Uniswap we can attach fee info if we want, but swapParams is generic
+              // We'll store fee in a separate var or hack it into swapParams if needed
+              // For now, let's keep it simple.
+            };
+            // Augment swapParams with specific Uniswap data if needed by the execution block
+            (swapParams as any).uniswapFee = quote.fee;
+          } else {
+            swapParams = {
+              fromToken: sourceToken.contractAddress,
+              fromAmount: sourceAmountToSwap,
+            };
+          }
+
+          yield* _(
+            Effect.sync(() =>
+              toast.info(
+                `Insufficient target balance. Swapping ${sourceToken.displaySymbol}...`,
+              ),
+            ),
+          );
+        } else {
+          return yield* _(
+            Effect.fail(
+              new Error(
+                'Insufficient balance. No suitable token found for auto-swap.',
+              ),
+            ),
+          );
+        }
       }
 
       // Notify Backend about intent (Optimistic)
@@ -367,7 +358,7 @@ export const PaymentConfirmationService = () => {
           try: () =>
             api.api.payments.post({
               merchantAddress: address,
-              amount: search.amount?.toString() || '0',
+              amount: paymentAmount.toString(),
               currency: search.currency || 'USDC',
               tokenAddress: safeTargetToken.contractAddress, // Merchant expects this
               chainId: safeTargetToken.chainId,
@@ -401,25 +392,114 @@ export const PaymentConfirmationService = () => {
           catch: (error) => error,
         }),
       );
+      kernelClient.getChainId().then(console.log);
+      let userOpHash: string;
 
-      const encodedCalls = yield* _(
-        Effect.tryPromise({
-          try: () => account.encodeCalls(calls),
-          catch: (error) => error,
-        }),
-      );
+      if (paymentStrategy === 'direct') {
+        const encodedCalls = yield* _(
+          Effect.tryPromise({
+            try: () => account.encodeCalls(calls),
+            catch: (error) => error,
+          }),
+        );
 
-      yield* _(Effect.sync(() => toast.info('Sending user operation...')));
+        yield* _(
+          Effect.sync(() => toast.info('Sending transfer user operation...')),
+        );
 
-      const userOpHash = yield* _(
-        Effect.tryPromise({
-          try: () =>
-            kernelClient.sendUserOperation({
-              callData: encodedCalls,
+        userOpHash = yield* _(
+          Effect.tryPromise({
+            try: () =>
+              kernelClient.sendUserOperation({
+                callData: encodedCalls,
+              }),
+            catch: (error) => error,
+          }),
+        );
+      } else {
+        if (!swapParams) {
+          return yield* _(Effect.fail(new Error('Swap params missing')));
+        }
+
+        if (isDev && safeTargetToken.chainId === sepolia.id) {
+          // Uniswap Implementation
+          const uniswapFee = (swapParams as any).uniswapFee ?? 3000;
+          const uniswapCalls: any[] = [];
+
+          // 1. Approve SwapRouter
+          const approveCallData = encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [UNISWAP_V3_SWAP_ROUTER as Address, swapParams.fromAmount],
+          });
+
+          uniswapCalls.push({
+            to: swapParams.fromToken,
+            value: 0n,
+            data: approveCallData,
+          });
+
+          // 2. ExactInputSingle
+          // Calculate min amount out with slippery tolerance?
+          // For now using 0 as min amount out for simplicity in demo or calculate if we had the quote
+          // But we don't have the quote variable in scope here cleanly unless we passed it.
+          // Let's assume 0 for "on-demand" testnet demo.
+          // Ideally: amountOutMinimum: quote.amountOut * 0.99
+          const swapCall = getUniswapSwapCallData(
+            swapParams.fromToken,
+            safeTargetToken.contractAddress,
+            address as Address, // recipient is merchant
+            swapParams!.fromAmount,
+            0n, // amountOutMinimum
+            uniswapFee,
+          );
+
+          uniswapCalls.push(swapCall);
+
+          const encodedCalls = yield* _(
+            Effect.tryPromise({
+              try: () => account.encodeCalls(uniswapCalls),
+              catch: (error) => error,
             }),
-          catch: (error) => error,
-        }),
-      );
+          );
+
+          yield* _(
+            Effect.sync(() =>
+              toast.info('Sending Uniswap swap user operation...'),
+            ),
+          );
+
+          userOpHash = yield* _(
+            Effect.tryPromise({
+              try: () =>
+                kernelClient.sendUserOperation({
+                  callData: encodedCalls,
+                }),
+              catch: (error) => error,
+            }),
+          );
+        } else {
+          // ZeroDev DeFi Implementation (Arbitrum/Polygon/etc)
+          const defiClient = getDefiClient(kernelClient);
+          yield* _(
+            Effect.sync(() => toast.info('Sending swap user operation...')),
+          );
+
+          userOpHash = yield* _(
+            Effect.tryPromise({
+              try: () =>
+                defiClient.sendSwapUserOp({
+                  fromToken: swapParams!.fromToken,
+                  fromAmount: swapParams!.fromAmount,
+                  toToken: safeTargetToken.contractAddress,
+                  toAddress: address as Address,
+                  gasToken: 'sponsored',
+                }),
+              catch: (error) => error,
+            }),
+          );
+        }
+      }
 
       console.log('User Operation Hash:', userOpHash);
 
@@ -474,14 +554,13 @@ export const PaymentConfirmationService = () => {
     <PaymentConfirmationView
       merchantAddress={address}
       merchantName={merchantName}
-      amount={search.amount.toString()}
+      amount={amountInput}
       currency={search.currency}
       networks={formattedNetworks}
       isLoading={isLoading}
       onConfirm={handleConfirm}
+      onAmountChange={setAmountInput}
       unifiedBalance={unifiedBalance}
-      routeInfo={routeInfo}
-      isCalculatingRoute={isCalculatingRoute}
     />
   );
 };

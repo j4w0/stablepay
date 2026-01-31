@@ -8,10 +8,14 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@ensofinance/sdk": "^2.0.12",
     "@openzeppelin/contracts": "^5.4.0",
     "@reown/appkit": "^1.8.16",
     "@reown/appkit-adapter-wagmi": "^1.8.16",
+    "@uniswap/sdk-core": "^7.10.1",
+    "@uniswap/v3-periphery": "^1.4.4",
+    "@uniswap/v3-sdk": "^3.27.0",
+    "@uniswap/v4-sdk": "^1.27.0",
+    "@zerodev/defi": "^0.2.0",
     "@zerodev/ecdsa-validator": "^5.4.9",
     "@zerodev/passkey-validator": "^5.6.0",
     "@zerodev/permissions": "^5.6.3",
