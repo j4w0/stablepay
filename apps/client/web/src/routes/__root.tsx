@@ -1,13 +1,4 @@
 import {
-  History,
-  Home,
-  Info,
-  MainLayout,
-  Settings,
-  SubPageLayout,
-  type SubPageLayoutProps,
-} from '@stablepay/client-ui';
-import {
   ENTRYPOINT,
   KERNEL_VERSION,
   publicClient,
@@ -21,14 +12,12 @@ import { Toaster } from '@stablepay/ui-base';
 import {
   createRootRoute,
   Outlet,
-  redirect,
   useLocation,
   useNavigate,
 } from '@tanstack/react-router';
 import { Effect } from 'effect';
 import { useEffect } from 'react';
-import { AssetsSidebarService } from '../services/AssetsSidebarService';
-import { hasWalletSession, isWalletReady } from '../utils/walletConnection';
+import { hasWalletSession } from '../utils/walletConnection';
 
 const RootLayout = () => {
   const navigate = useNavigate();
@@ -71,7 +60,7 @@ const RootLayout = () => {
       yield* _(
         Effect.sync(() => {
           setStatus('connecting');
-        })
+        }),
       );
 
       const passkeyValidator = yield* _(
@@ -79,7 +68,7 @@ const RootLayout = () => {
           try: () =>
             createPasskeyValidatorFromWebAuthnKey(publicClient, sessionKey),
           catch: (error) => error,
-        })
+        }),
       );
 
       const account = yield* _(
@@ -94,7 +83,7 @@ const RootLayout = () => {
               address: address,
             }),
           catch: (error) => error,
-        })
+        }),
       );
 
       if (!isActive) {
@@ -105,7 +94,7 @@ const RootLayout = () => {
         Effect.tryPromise({
           try: () => account.getAddress(),
           catch: (error) => error,
-        })
+        }),
       );
 
       if (!isActive) {
@@ -120,7 +109,7 @@ const RootLayout = () => {
           if (location.pathname === '/onboarding') {
             navigate({ to: '/' });
           }
-        })
+        }),
       );
     }).pipe(
       Effect.catchAll((error) =>
@@ -134,12 +123,8 @@ const RootLayout = () => {
           setAddress(undefined);
           setStatus('idle');
           setWebAuthnKey(undefined);
-
-          if (location.pathname !== '/onboarding') {
-            navigate({ to: '/onboarding' });
-          }
-        })
-      )
+        }),
+      ),
     );
 
     Effect.runPromise(restoreEffect);
@@ -158,30 +143,6 @@ const RootLayout = () => {
     webAuthnKey,
   ]);
 
-  const navItems = [
-    {
-      key: 'home',
-      label: 'Home',
-      icon: Home,
-      active: location.pathname === '/',
-      onClick: () => navigate({ to: '/' }),
-    },
-    {
-      key: 'history',
-      label: 'History',
-      icon: History,
-      active: location.pathname === '/history',
-      onClick: () => navigate({ to: '/history' }),
-    },
-    {
-      key: 'about',
-      label: 'About',
-      icon: Info,
-      active: location.pathname === '/about',
-      onClick: () => navigate({ to: '/about' }),
-    },
-  ];
-
   if (location.pathname === '/onboarding') {
     return (
       <div className='h-screen w-screen bg-background'>
@@ -192,62 +153,17 @@ const RootLayout = () => {
     );
   }
 
-  const subPageConfig: Record<string, Omit<SubPageLayoutProps, 'children'>> = {
-    '/settings': { title: 'Settings' },
-    '/scan': { title: 'Scan QR Code' },
-    '/send': { title: 'Send / Receive' },
-  };
-
-  const currentSubPage =
-    subPageConfig[location.pathname] ||
-    (location.pathname.startsWith('/pay/')
-      ? { title: 'Confirm Payment' }
-      : null);
-
-  if (currentSubPage) {
-    return (
-      <SubPageLayout
-        title={currentSubPage.title}
-        onBack={() => navigate({ to: '/' })}
-      >
-        <Outlet />
-        <Toaster />
-      </SubPageLayout>
-    );
-  }
-
-  const dropdownItems = [
-    {
-      key: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      onClick: () => navigate({ to: '/settings' }) as unknown as void,
-    },
-  ];
-
+  // Simplified layout for demo
   return (
-    <MainLayout
-      navItems={navItems}
-      variant='default'
-      dropdownItems={dropdownItems}
-      rightSidebarSlot={<AssetsSidebarService />}
-    >
-      <Outlet />
+    <div className='h-screen w-screen bg-background flex flex-col overflow-hidden'>
+      <div className='flex-1 overflow-y-auto'>
+        <Outlet />
+      </div>
       <Toaster />
-    </MainLayout>
+    </div>
   );
 };
 
 export const Route = createRootRoute({
   component: RootLayout,
-  beforeLoad: ({ location }) => {
-    const { status, webAuthnKey } = useWalletStore.getState();
-    const isAllowed = isWalletReady(status, webAuthnKey);
-
-    if (!isAllowed && location.pathname !== '/onboarding') {
-      throw redirect({
-        to: '/onboarding',
-      });
-    }
-  },
 });

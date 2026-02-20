@@ -9,4 +9,5 @@ export interface PaymentStatusProps {
   merchantName?: string;
   updatedAt?: string;
   onRefresh?: () => void;
+  onReturnHome?: () => void;
 }

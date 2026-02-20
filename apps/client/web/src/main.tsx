@@ -31,6 +31,6 @@ if (!rootElement.innerHTML) {
           <RouterProvider router={router} />
         </QueryClientProvider>
       </WagmiProvider>
-    </StrictMode>
+    </StrictMode>,
   );
 }

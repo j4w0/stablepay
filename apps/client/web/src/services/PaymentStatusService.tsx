@@ -1,5 +1,6 @@
 import { PaymentStatusView } from '@stablepay/client-ui';
 import { PaymentStatus } from '@stablepay/common/interfaces/Payment';
+import { useNavigate } from '@tanstack/react-router';
 import { Effect } from 'effect';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
@@ -17,9 +18,10 @@ type PaymentDetails = {
 
 export const PaymentStatusService = () => {
   const { ref } = Route.useParams();
+  const navigate = useNavigate();
   const [payment, setPayment] = useState<PaymentDetails | null>(null);
   const [merchantName, setMerchantName] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -59,7 +61,7 @@ export const PaymentStatusService = () => {
         },
         catch: (error) => error,
       }),
-    [ref]
+    [ref],
   );
 
   const fetchPayment = useCallback(
@@ -69,16 +71,16 @@ export const PaymentStatusService = () => {
           Effect.tap((data) =>
             Effect.sync(() => {
               setPayment(data);
-            })
+            }),
           ),
           Effect.tapError((err) =>
             Effect.sync(() => {
               console.error('Failed to fetch payment status:', err);
-            })
-          )
-        )
+            }),
+          ),
+        ),
       ),
-    [fetchPaymentEffect]
+    [fetchPaymentEffect],
   );
 
   useEffect(() => {
@@ -129,14 +131,14 @@ export const PaymentStatusService = () => {
         Effect.tap((name) =>
           Effect.sync(() => {
             setMerchantName(name);
-          })
+          }),
         ),
         Effect.tapError((error) =>
           Effect.sync(() => {
             console.error(error);
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
   }, [payment?.merchantId]);
 
@@ -158,6 +160,7 @@ export const PaymentStatusService = () => {
       updatedAt={payment.updatedAt}
       merchantName={merchantName}
       onRefresh={fetchPayment}
+      onReturnHome={() => navigate({ to: '/' })}
     />
   );
 };

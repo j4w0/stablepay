@@ -177,7 +177,7 @@ export const PaymentConfirmationService = () => {
       setAddress(undefined);
       setStatus('idle');
       toast.error('Session missing. Please log in again.');
-      navigate({ to: '/onboarding' });
+      navigate({ to: '/' });
     }
   }, [navigate, webAuthnKey, setAddress, setStatus]);
 
@@ -234,7 +234,11 @@ export const PaymentConfirmationService = () => {
       const txChainId = safeTargetToken.chainId;
 
       let paymentStrategy: 'direct' | 'swap' = 'direct';
-      let swapParams: { fromToken: Address; fromAmount: bigint } | undefined;
+      let swapParams: {
+        fromToken: Address;
+        fromAmount: bigint;
+        uniswapFee?: number;
+      } | null = null;
 
       // Ensure we are sending the correct token to the merchant.
       if (hasSufficientBalance) {
@@ -319,17 +323,13 @@ export const PaymentConfirmationService = () => {
             }
 
             swapParams = {
-              fromToken: sourceToken.contractAddress,
+              fromToken: sourceToken.contractAddress as Address,
               fromAmount: sourceAmountToSwap,
-              // For Uniswap we can attach fee info if we want, but swapParams is generic
-              // We'll store fee in a separate var or hack it into swapParams if needed
-              // For now, let's keep it simple.
+              uniswapFee: quote.fee,
             };
-            // Augment swapParams with specific Uniswap data if needed by the execution block
-            (swapParams as any).uniswapFee = quote.fee;
           } else {
             swapParams = {
-              fromToken: sourceToken.contractAddress,
+              fromToken: sourceToken.contractAddress as Address,
               fromAmount: sourceAmountToSwap,
             };
           }
@@ -423,8 +423,12 @@ export const PaymentConfirmationService = () => {
 
         if (isDev && safeTargetToken.chainId === sepolia.id) {
           // Uniswap Implementation
-          const uniswapFee = (swapParams as any).uniswapFee ?? 3000;
-          const uniswapCalls: any[] = [];
+          const uniswapFee = swapParams.uniswapFee ?? 3000;
+          const uniswapCalls: {
+            to: Address;
+            value: bigint;
+            data: `0x${string}`;
+          }[] = [];
 
           // 1. Approve SwapRouter
           const approveCallData = encodeFunctionData({

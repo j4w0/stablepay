@@ -20,6 +20,7 @@ export const PaymentStatusView: React.FC<PaymentStatusProps> = ({
   merchantName,
   updatedAt,
   onRefresh,
+  onReturnHome,
 }) => {
   const getStatusIcon = () => {
     switch (status) {
@@ -113,6 +114,9 @@ export const PaymentStatusView: React.FC<PaymentStatusProps> = ({
             <Button variant='outline' onClick={onRefresh}>
               Refresh Status
             </Button>
+          )}
+          {status !== PaymentStatus.Pending && onReturnHome && (
+            <Button onClick={onReturnHome}>Return to Home</Button>
           )}
         </CardFooter>
       </Card>
