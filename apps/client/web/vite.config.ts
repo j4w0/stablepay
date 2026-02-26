@@ -12,9 +12,4 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
-  build: {
-    rollupOptions: {
-      external: ['@stablepay/common', '@stablepay/client-ui'],
-    },
-  },
 });
