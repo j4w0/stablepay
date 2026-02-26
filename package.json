@@ -10,7 +10,8 @@
     "packages/ui/*"
   ],
   "scripts": {
-    "dev:all": "bun run scripts/dev-all.ts"
+    "dev:all": "bun run scripts/dev-all.ts",
+    "build:client-web": "cd apps/client/web && bun run build"
   },
   "devDependencies": {
     "@types/bun": "latest",
