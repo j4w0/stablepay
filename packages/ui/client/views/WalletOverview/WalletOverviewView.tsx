@@ -38,7 +38,7 @@ export const WalletOverviewView: React.FC<WalletOverviewProps> = ({
             <Button
               onClick={onCreateTestTransaction}
               className='h-12 px-6 text-base'
-              variant='default'
+              variant='outline'
             >
               Create Test Transaction
             </Button>
@@ -121,7 +121,10 @@ export const WalletOverviewView: React.FC<WalletOverviewProps> = ({
             </div>
           </div>
         ) : (
-          <div className='flex flex-col items-center justify-center p-8 text-center space-y-4 rounded-2xl border border-dashed w-full h-[360px]'>
+          <a
+            href='/onboarding'
+            className='flex flex-col items-center justify-center p-8 text-center space-y-4 rounded-2xl border border-dashed w-full h-[360px]'
+          >
             <div className='p-4 bg-muted rounded-full'>
               <Scan className='w-8 h-8 text-muted-foreground' />
             </div>
@@ -132,7 +135,7 @@ export const WalletOverviewView: React.FC<WalletOverviewProps> = ({
                 import your wallet.
               </p>
             </div>
-          </div>
+          </a>
         )}
       </div>
     </div>
