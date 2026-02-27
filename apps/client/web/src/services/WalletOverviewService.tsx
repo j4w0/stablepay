@@ -35,7 +35,7 @@ export const WalletOverviewImpl: React.FC = () => {
   const refreshIntervalMs = 60 * 1000;
   const shouldFetch = Boolean(address && webAuthnKey && status === 'connected');
 
-  const { data: balanceData, refetch } = useReadContracts({
+  const { data: balanceData, isFetching, refetch } = useReadContracts({
     contracts: allTokens.map((token) => ({
       address: token.contractAddress,
       abi: erc20Abi,
@@ -87,6 +87,18 @@ export const WalletOverviewImpl: React.FC = () => {
 
   const handleSend = () => {
     navigate({ to: '/send' });
+  };
+
+  const handleRefreshBalance = () => {
+    if (!shouldFetch) {
+      return;
+    }
+
+    refetch()
+      .then(() => setLastFetchedAt(Date.now()))
+      .catch((error) => {
+        console.error('Failed to refresh stablecoin balances', error);
+      });
   };
 
   const handleCreateTestTransaction = async () => {
@@ -150,6 +162,9 @@ export const WalletOverviewImpl: React.FC = () => {
       balance={Number.isFinite(totalAssetsUsd) ? totalAssetsUsd : 0}
       onScan={handleScan}
       onSend={handleSend}
+      onRefreshBalance={handleRefreshBalance}
+      isRefreshingBalance={isFetching}
+      canRefreshBalance={shouldFetch}
       onCreateTestTransaction={handleCreateTestTransaction}
       onReset={handleReset}
       address={address}

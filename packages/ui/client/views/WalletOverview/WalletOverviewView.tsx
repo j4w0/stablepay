@@ -9,6 +9,9 @@ export const WalletOverviewView: React.FC<WalletOverviewProps> = ({
   balance,
   onScan,
   onSend,
+  onRefreshBalance,
+  isRefreshingBalance,
+  canRefreshBalance,
   onCreateTestTransaction,
   onReset,
   address,
@@ -31,6 +34,19 @@ export const WalletOverviewView: React.FC<WalletOverviewProps> = ({
               maximumFractionDigits: 2,
             })}
           </div>
+          {onRefreshBalance && (
+            <div className='pt-2'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={onRefreshBalance}
+                disabled={Boolean(isRefreshingBalance) || !canRefreshBalance}
+              >
+                <RefreshCcw className='mr-2 h-4 w-4' />
+                {isRefreshingBalance ? 'Refreshing...' : 'Refresh Balance'}
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className='flex gap-4 w-full justify-start'>
