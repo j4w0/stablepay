@@ -12,7 +12,7 @@ const { result } = concurrently(
       prefixColor: 'cyan',
     },
     {
-      command: 'cd apps/api && bun dev',
+      command: 'cd apps/server && bun dev',
       name: 'ApiServer',
       prefixColor: 'green',
     },

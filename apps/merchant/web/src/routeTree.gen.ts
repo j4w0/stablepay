@@ -45,8 +45,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/merchants/new': typeof MerchantsNewRoute
   '/payments/new': typeof PaymentsNewRoute
-  '/merchants': typeof MerchantsIndexRoute
-  '/payments': typeof PaymentsIndexRoute
+  '/merchants/': typeof MerchantsIndexRoute
+  '/payments/': typeof PaymentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,8 +69,8 @@ export interface FileRouteTypes {
     | '/'
     | '/merchants/new'
     | '/payments/new'
-    | '/merchants'
-    | '/payments'
+    | '/merchants/'
+    | '/payments/'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/merchants/new' | '/payments/new' | '/merchants' | '/payments'
   id:
@@ -102,14 +102,14 @@ declare module '@tanstack/react-router' {
     '/payments/': {
       id: '/payments/'
       path: '/payments'
-      fullPath: '/payments'
+      fullPath: '/payments/'
       preLoaderRoute: typeof PaymentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/merchants/': {
       id: '/merchants/'
       path: '/merchants'
-      fullPath: '/merchants'
+      fullPath: '/merchants/'
       preLoaderRoute: typeof MerchantsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
