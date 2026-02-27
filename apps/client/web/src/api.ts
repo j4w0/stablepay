@@ -1,8 +1,10 @@
+import { ZERODEV_RPC_URL } from '@stablepay/common/config/zerodev';
 import {
   PaymentStatus,
   type PaymentDTO,
 } from '@stablepay/common/interfaces/Payment';
 import type { Address } from 'viem';
+import { arbitrum, polygon, sepolia } from 'viem/chains';
 
 type ApiResult<T> = {
   data: T;
@@ -39,7 +41,7 @@ const mockMerchants: MerchantMock[] = [
     merchantId: '11111111-1111-4111-8111-111111111111',
     address: '0x1111111111111111111111111111111111111111',
     supportedNetworkIDs: [11155111],
-    supportedCurrencies: ['USD'],
+    supportedCurrencies: ['JPY'],
     metadata: {
       name: 'StablePay Demo Merchant',
       description: 'Local mock merchant for web demo.',
@@ -48,6 +50,22 @@ const mockMerchants: MerchantMock[] = [
 ];
 
 const paymentsStore = new Map<string, PaymentDTO>();
+
+const bundlerRpcUrlByChainId = new Map<number, string>([
+  [sepolia.id, ZERODEV_RPC_URL],
+  [
+    polygon.id,
+    import.meta.env.VITE_BUNDLER_RPC_URL_POLYGON ||
+      import.meta.env.VITE_BUNDLER_RPC_URL ||
+      '',
+  ],
+  [
+    arbitrum.id,
+    import.meta.env.VITE_BUNDLER_RPC_URL_ARBITRUM ||
+      import.meta.env.VITE_BUNDLER_RPC_URL ||
+      '',
+  ],
+]);
 
 const asSuccess = <T>(data: T): ApiResult<T> => ({
   data,
@@ -62,7 +80,55 @@ const findMerchantByAddress = (address: string) =>
 const findMerchantById = (id: string) =>
   mockMerchants.find((merchant) => merchant.merchantId === id);
 
-const getPaymentWithProgress = (payment: PaymentDTO): PaymentDTO => {
+const getBundlerRpcUrl = (chainId: number) => {
+  const rpcUrl = bundlerRpcUrlByChainId.get(chainId);
+  if (!rpcUrl) return null;
+  return rpcUrl;
+};
+
+type UserOpReceiptRpcResult = {
+  success?: boolean;
+  receipt?: {
+    status?: string;
+  };
+};
+
+const getUserOperationReceiptFromBundler = async (
+  rpcUrl: string,
+  hash: `0x${string}`,
+): Promise<UserOpReceiptRpcResult | null> => {
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'eth_getUserOperationReceipt',
+      params: [hash],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Bundler RPC request failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    result?: UserOpReceiptRpcResult | null;
+    error?: { message?: string };
+  };
+
+  if (payload.error) {
+    throw new Error(payload.error.message || 'Bundler RPC returned an error');
+  }
+
+  return payload.result ?? null;
+};
+
+const getPaymentWithProgress = async (
+  payment: PaymentDTO,
+): Promise<PaymentDTO> => {
   if (
     payment.status === PaymentStatus.Completed ||
     payment.status === PaymentStatus.Failed ||
@@ -71,10 +137,26 @@ const getPaymentWithProgress = (payment: PaymentDTO): PaymentDTO => {
     return payment;
   }
 
-  const elapsedMs = Date.now() - Date.parse(payment.createdAt);
+  if (!payment.txHash || !payment.chainId) {
+    return payment;
+  }
 
-  if (!payment.txHash) {
-    if (elapsedMs >= 3_000 && payment.status !== PaymentStatus.Processing) {
+  const rpcUrl = getBundlerRpcUrl(payment.chainId);
+  if (!rpcUrl) {
+    return payment;
+  }
+
+  try {
+    const receipt = await getUserOperationReceiptFromBundler(
+      rpcUrl,
+      payment.txHash as `0x${string}`,
+    );
+
+    if (!receipt) {
+      if (payment.status === PaymentStatus.Processing) {
+        return payment;
+      }
+
       const next = {
         ...payment,
         status: PaymentStatus.Processing,
@@ -84,30 +166,23 @@ const getPaymentWithProgress = (payment: PaymentDTO): PaymentDTO => {
       return next;
     }
 
+    const isSuccess =
+      typeof receipt.success === 'boolean'
+        ? receipt.success
+        : receipt.receipt?.status === '0x1';
+
+    const next = {
+      ...payment,
+      status: isSuccess ? PaymentStatus.Completed : PaymentStatus.Failed,
+      updatedAt: new Date().toISOString(),
+    } satisfies PaymentDTO;
+
+    paymentsStore.set(payment.paymentRef, next);
+    return next;
+  } catch (error) {
+    console.error('Failed to sync payment status from chain:', error);
     return payment;
   }
-
-  if (elapsedMs >= 8_000) {
-    const next = {
-      ...payment,
-      status: PaymentStatus.Completed,
-      updatedAt: new Date().toISOString(),
-    } satisfies PaymentDTO;
-    paymentsStore.set(payment.paymentRef, next);
-    return next;
-  }
-
-  if (payment.status !== PaymentStatus.Processing) {
-    const next = {
-      ...payment,
-      status: PaymentStatus.Processing,
-      updatedAt: new Date().toISOString(),
-    } satisfies PaymentDTO;
-    paymentsStore.set(payment.paymentRef, next);
-    return next;
-  }
-
-  return payment;
 };
 
 const merchantsHandler = Object.assign(
@@ -159,7 +234,7 @@ const paymentsHandler = Object.assign(
         return asSuccess(fallback);
       }
 
-      return asSuccess(getPaymentWithProgress(existing));
+      return asSuccess(await getPaymentWithProgress(existing));
     },
     put: async (payload: UpdatePaymentBody) => {
       const existing = paymentsStore.get(ref);
