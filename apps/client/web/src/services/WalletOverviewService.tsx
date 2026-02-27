@@ -1,8 +1,5 @@
 import { WalletOverviewView } from '@stablepay/client-ui';
-import {
-  supportedStablecoins,
-  supportedTestnetStablecoins,
-} from '@stablepay/common/config/stablepay';
+import { supportedTestnetStablecoins } from '@stablepay/common/config/stablepay';
 import { useGlobalStore } from '@stablepay/common/stores/global';
 import { useWalletStore } from '@stablepay/common/stores/wallet';
 import { erc20Abi } from '@stablepay/common/utils/erc20';
@@ -30,8 +27,7 @@ export const WalletOverviewImpl: React.FC = () => {
   const { address, reset, status, webAuthnKey } = useWalletStore();
   const navigate = useNavigate();
 
-  const isDev = import.meta.env.DEV;
-  const allTokens = isDev ? supportedTestnetStablecoins : supportedStablecoins;
+  const allTokens = supportedTestnetStablecoins;
   const refreshIntervalMs = 60 * 1000;
   const shouldFetch = Boolean(address && webAuthnKey && status === 'connected');
 
