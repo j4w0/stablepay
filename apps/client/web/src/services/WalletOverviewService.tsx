@@ -106,9 +106,9 @@ export const WalletOverviewImpl: React.FC = () => {
   };
 
   const handleCreateTestTransaction = async () => {
-    let merchantAddress = DEMO_MERCHANT.address;
-    let merchantCurrency = DEMO_MERCHANT.currency;
-    let merchantNetworks = DEMO_MERCHANT.networks;
+    let merchantAddress: string = DEMO_MERCHANT.address;
+    let merchantCurrency: string = DEMO_MERCHANT.currency;
+    let merchantNetworks: number[] = [...DEMO_MERCHANT.networks];
 
     try {
       const { data } = await api.api.merchants

@@ -1,8 +1,5 @@
 import { PaymentConfirmationView } from '@stablepay/client-ui';
-import {
-  supportedStablecoins,
-  supportedTestnetStablecoins,
-} from '@stablepay/common/config/stablepay';
+import { supportedTestnetStablecoins } from '@stablepay/common/config/stablepay';
 import { publicClient } from '@stablepay/common/config/zerodev';
 import { useGlobalStore } from '@stablepay/common/stores/global';
 import { useWalletStore } from '@stablepay/common/stores/wallet';
@@ -56,7 +53,7 @@ export const PaymentConfirmationService = () => {
   }, [amountInput]);
 
   const isDev = import.meta.env.DEV;
-  const allTokens = isDev ? supportedTestnetStablecoins : supportedStablecoins;
+  const allTokens = supportedTestnetStablecoins;
 
   const chainNameById = useMemo(
     () =>
@@ -368,7 +365,7 @@ export const PaymentConfirmationService = () => {
       );
 
       if (error) {
-        yield* _(Effect.fail(new Error(JSON.stringify(error.value))));
+        yield* _(Effect.fail(new Error('Failed to initialize payment')));
       }
 
       if (!data || typeof data !== 'object' || !('paymentRef' in data)) {
@@ -520,7 +517,7 @@ export const PaymentConfirmationService = () => {
       if (updateError) {
         yield* _(
           Effect.sync(() => {
-            console.error('Failed to update payment hash:', updateError.value);
+            console.error('Failed to update payment hash:', updateError);
             toast.error('Payment submitted, but tracking update failed.');
           }),
         );
