@@ -3,13 +3,12 @@ import { supportedTestnetStablecoins } from '@stablepay/common/config/stablepay'
 import { publicClient } from '@stablepay/common/config/zerodev';
 import { useGlobalStore } from '@stablepay/common/stores/global';
 import { useWalletStore } from '@stablepay/common/stores/wallet';
-import { getDefiClient } from '@stablepay/common/utils/defi';
 import { erc20Abi } from '@stablepay/common/utils/erc20';
 import { getKernelClientWithPasskey } from '@stablepay/common/utils/initZeroDev';
 import {
-  getBestUniswapQuote,
-  getUniswapSwapCallData,
-  UNISWAP_V3_SWAP_ROUTER,
+    getBestUniswapQuote,
+    getUniswapSwapCallData,
+    UNISWAP_V3_SWAP_ROUTER,
 } from '@stablepay/common/utils/uniswap';
 import { useNavigate } from '@tanstack/react-router';
 import { Effect } from 'effect';
@@ -52,7 +51,6 @@ export const PaymentConfirmationService = () => {
     return Number.isFinite(val) ? val : 0;
   }, [amountInput]);
 
-  const isDev = import.meta.env.DEV;
   const allTokens = supportedTestnetStablecoins;
 
   const chainNameById = useMemo(
@@ -193,8 +191,7 @@ export const PaymentConfirmationService = () => {
       }
 
       // 1. Identify Target Token
-      const targetChainId =
-        search.networks?.[0] ?? (isDev ? sepolia.id : arbitrum.id);
+      const targetChainId = search.networks?.[0] ?? sepolia.id;
       const targetSymbol = search.currency ?? 'USD';
 
       const targetToken = allTokens.find(
@@ -287,7 +284,7 @@ export const PaymentConfirmationService = () => {
 
         if (sourceToken) {
           // If using Uniswap (Testnet), we need a quote to determine exact amount
-          if (isDev && safeTargetToken.chainId === sepolia.id) {
+          if (safeTargetToken.chainId === sepolia.id) {
             yield* _(
               Effect.sync(() =>
                 toast.info(
@@ -418,7 +415,7 @@ export const PaymentConfirmationService = () => {
           return yield* _(Effect.fail(new Error('Swap params missing')));
         }
 
-        if (isDev && safeTargetToken.chainId === sepolia.id) {
+        if (safeTargetToken.chainId === sepolia.id) {
           // Uniswap Implementation
           const uniswapFee = swapParams.uniswapFee ?? 3000;
           const uniswapCalls: {
@@ -480,24 +477,12 @@ export const PaymentConfirmationService = () => {
             }),
           );
         } else {
-          // ZeroDev DeFi Implementation (Arbitrum/Polygon/etc)
-          const defiClient = getDefiClient(kernelClient);
-          yield* _(
-            Effect.sync(() => toast.info('Sending swap user operation...')),
-          );
-
-          userOpHash = yield* _(
-            Effect.tryPromise({
-              try: () =>
-                defiClient.sendSwapUserOp({
-                  fromToken: swapParams!.fromToken,
-                  fromAmount: swapParams!.fromAmount,
-                  toToken: safeTargetToken.contractAddress,
-                  toAddress: address as Address,
-                  gasToken: 'sponsored',
-                }),
-              catch: (error) => error,
-            }),
+          return yield* _(
+            Effect.fail(
+              new Error(
+                `Auto-swap is currently supported only on Sepolia/Uniswap in web client. Requested chain: ${safeTargetToken.chainId}`,
+              ),
+            ),
           );
         }
       }
