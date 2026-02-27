@@ -6,11 +6,6 @@ export const ENTRYPOINT = getEntryPoint('0.7');
 export const KERNEL_VERSION = KERNEL_V3_1;
 
 const readEnv = (key: string): string | undefined => {
-  const processEnv =
-    typeof process !== 'undefined' ? process.env?.[key] : undefined;
-
-  if (processEnv) return processEnv;
-
   const importMetaEnv = (
     import.meta as ImportMeta & {
       env?: Record<string, string | undefined>;
