@@ -195,7 +195,7 @@ export const PaymentConfirmationService = () => {
       // 1. Identify Target Token
       const targetChainId =
         search.networks?.[0] ?? (isDev ? sepolia.id : arbitrum.id);
-      const targetSymbol = search.currency ?? 'USDC';
+      const targetSymbol = search.currency ?? 'USD';
 
       const targetToken = allTokens.find(
         (t) => t.currency === targetSymbol && t.chainId === targetChainId,
