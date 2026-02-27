@@ -4,9 +4,22 @@ import { sepolia } from 'viem/chains';
 
 export const ENTRYPOINT = getEntryPoint('0.7');
 export const KERNEL_VERSION = KERNEL_V3_1;
-// NOTE: to env?
+
+const readEnv = (key: string): string | undefined => {
+  const processEnv =
+    typeof process !== 'undefined' ? process.env?.[key] : undefined;
+  if (processEnv) return processEnv;
+
+  const importMetaEnv = (
+    import.meta as ImportMeta & {
+      env?: Record<string, string | undefined>;
+    }
+  ).env;
+  return importMetaEnv?.[key];
+};
+
 export const ZERODEV_PROJECT_ID =
-  process.env.ZERODEV_PROJECT_ID || '20f0dc5b-06d7-4245-85d0-25cc69a3994d';
+  readEnv('ZERODEV_PROJECT_ID') || readEnv('VITE_ZERODEV_PROJECT_ID') || '';
 export const ZERODEV_RPC_URL = `https://rpc.zerodev.app/api/v3/${ZERODEV_PROJECT_ID}/chain/11155111?selfFunded=true`;
 export const PASSKEY_SERVER_URL = `https://passkeys.zerodev.app/api/v3/${ZERODEV_PROJECT_ID}`;
 
