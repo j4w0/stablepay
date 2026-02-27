@@ -8,6 +8,7 @@ export const KERNEL_VERSION = KERNEL_V3_1;
 const readEnv = (key: string): string | undefined => {
   const processEnv =
     typeof process !== 'undefined' ? process.env?.[key] : undefined;
+
   if (processEnv) return processEnv;
 
   const importMetaEnv = (
@@ -15,6 +16,7 @@ const readEnv = (key: string): string | undefined => {
       env?: Record<string, string | undefined>;
     }
   ).env;
+
   return importMetaEnv?.[key];
 };
 
